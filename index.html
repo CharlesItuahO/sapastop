@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SapaStop — Zero-Based Envelope Budgeting Portal</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <!-- Chart.js for Cash Flow Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              300: '#6ee7b7',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Custom scrollbar for clean fintech feel */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.55);
+    }
+    /* Remove number input arrows */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased transition-colors duration-200 min-h-screen flex flex-col">
+
+  <!-- Toast Notification Container (Replaces alert/confirm) -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-wrap items-center justify-between gap-3 py-3.5">
+        <!-- Brand Logo -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white shadow-md shadow-emerald-600/20">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-display font-extrabold text-xl tracking-tight text-slate-900 dark:text-white">Sapa<span class="text-emerald-600 dark:text-emerald-400">Stop</span></span>
+              <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                Zero-Based
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Give every Naira a job before Sapa finds it</p>
+          </div>
+        </div>
+
+        <!-- Month Navigator (Center) -->
+        <div class="flex items-center bg-slate-100 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/70 order-3 sm:order-2 w-full sm:w-auto justify-between sm:justify-center">
+          <button onclick="changeMonth(-1)" title="Previous Month" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+          <div class="px-4 py-1 flex items-center gap-2 font-display font-bold text-sm text-slate-800 dark:text-slate-100">
+            <i data-lucide="calendar" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+            <span id="current-month-label">November 2026</span>
+          </div>
+          <button onclick="changeMonth(1)" title="Next Month" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition">
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Right Controls: Currency, Quick Actions & Theme Toggle -->
+        <div class="flex items-center gap-2 order-2 sm:order-3">
+          <!-- Currency Switcher -->
+          <div class="relative">
+            <select id="currency-select" onchange="changeCurrency(this.value)" aria-label="Select Currency" class="appearance-none bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-semibold rounded-xl pl-3 pr-7 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+              <option value="NGN">₦ NGN</option>
+              <option value="USD">$ USD</option>
+              <option value="GBP">£ GBP</option>
+              <option value="EUR">€ EUR</option>
+            </select>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          </div>
+
+          <!-- Actions Dropdown -->
+          <div class="relative" id="actions-dropdown-wrapper">
+            <button onclick="toggleActionsMenu()" class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 transition">
+              <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+              <span class="hidden md:inline">Actions</span>
+            </button>
+            <div id="actions-menu" class="hidden absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-50">
+              <button onclick="loadSampleBudget(); toggleActionsMenu()" class="w-full px-4 py-2.5 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5">
+                <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600"></i>
+                Load Sample Lagos Budget
+              </button>
+              <button onclick="copyFromPreviousMonth(); toggleActionsMenu()" class="w-full px-4 py-2.5 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5">
+                <i data-lucide="copy" class="w-4 h-4 text-blue-600"></i>
+                Copy Prev. Month Envelopes
+              </button>
+              <button onclick="exportCSV(); toggleActionsMenu()" class="w-full px-4 py-2.5 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5">
+                <i data-lucide="download" class="w-4 h-4 text-indigo-600"></i>
+                Export Month CSV
+              </button>
+              <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
+              <button onclick="openResetModal(); toggleActionsMenu()" class="w-full px-4 py-2.5 text-left text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                Reset Current Month
+              </button>
+            </div>
+          </div>
+
+          <!-- Theme Toggle -->
+          <button onclick="toggleTheme()" title="Toggle Light/Dark Mode" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
+            <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+            <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-amber-400"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- 1. ZERO-BASED COMMAND CENTER (HERO DASHBOARD) -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <!-- Ready to Assign Hero Banner (Left 7 cols on lg) -->
+      <div id="ready-to-assign-card" class="lg:col-span-7 rounded-2xl p-5 sm:p-6 border transition-all duration-300 shadow-sm flex flex-col justify-between bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/70">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="rta-badge-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Ready to Assign (Left to Budget)</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-3">
+              <h1 id="ready-to-assign-amount" class="font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-emerald-700 dark:text-emerald-300">
+                ₦0
+              </h1>
+            </div>
+            <p id="ready-to-assign-message" class="mt-1.5 text-sm font-medium text-emerald-800 dark:text-emerald-200">
+              Sapa Defeated! Every single Naira has a job.
+            </p>
+          </div>
+
+          <!-- Income Sources Trigger -->
+          <button onclick="openIncomeModal()" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-semibold shadow-sm border border-slate-200/90 dark:border-slate-700 transition">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+            <span>Manage Income Streams</span>
+          </button>
+        </div>
+
+        <!-- Income Chips Strip -->
+        <div class="mt-5 pt-4 border-t border-black/5 dark:border-white/10 flex flex-wrap items-center justify-between gap-2">
+          <div id="income-streams-pills" class="flex flex-wrap items-center gap-1.5">
+            <!-- Populated via JS -->
+          </div>
+          <button onclick="autoBalanceZero()" id="auto-balance-btn" class="hidden text-xs font-semibold underline decoration-dotted underline-offset-4 hover:opacity-80 transition">
+            Auto-assign remainder to Savings →
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 KPI Summary Cards (Right 5 cols on lg) -->
+      <div class="lg:col-span-5 grid grid-cols-2 gap-3.5">
+        <!-- Total Monthly Income -->
+        <div onclick="openIncomeModal()" class="cursor-pointer group bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-emerald-400 dark:hover:border-emerald-600 transition">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Monthly Income</span>
+            <span class="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition">
+              <i data-lucide="wallet" class="w-4 h-4"></i>
+            </span>
+          </div>
+          <p id="kpi-income" class="mt-2.5 font-display font-bold text-lg sm:text-xl tabular-nums text-slate-900 dark:text-white truncate">₦650,000</p>
+          <p class="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+            <span>Edit inflows</span>
+            <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+          </p>
+        </div>
+
+        <!-- Total Assigned -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Total Assigned</span>
+            <span class="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+              <i data-lucide="layers" class="w-4 h-4"></i>
+            </span>
+          </div>
+          <p id="kpi-assigned" class="mt-2.5 font-display font-bold text-lg sm:text-xl tabular-nums text-slate-900 dark:text-white truncate">₦650,000</p>
+          <p id="kpi-assigned-pct" class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium">100% allocated</p>
+        </div>
+
+        <!-- Total Spent -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Total Spent</span>
+            <span class="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+              <i data-lucide="receipt" class="w-4 h-4"></i>
+            </span>
+          </div>
+          <p id="kpi-spent" class="mt-2.5 font-display font-bold text-lg sm:text-xl tabular-nums text-slate-900 dark:text-white truncate">₦0</p>
+          <p id="kpi-spent-pct" class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium">0% of budget used</p>
+        </div>
+
+        <!-- Cash Remaining in Envelopes -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Envelope Cash Left</span>
+            <span class="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+            </span>
+          </div>
+          <p id="kpi-available" class="mt-2.5 font-display font-bold text-lg sm:text-xl tabular-nums text-slate-900 dark:text-white truncate">₦650,000</p>
+          <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium">Safe to spend</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. MAIN WORKSPACE: 2-COLUMN DESKTOP LAYOUT -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- LEFT COLUMN (7/12): ENVELOPE CASH FLOW PLANNER -->
+      <div class="lg:col-span-7 space-y-4">
+        <!-- Toolbar -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="font-display font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <span>Digital Cash Envelopes</span>
+              <span id="envelope-count-badge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">0</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Click any assigned amount to edit, or move funds to cover overspending</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openMoveMoneyModal()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition">
+              <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400"></i>
+              <span>Move Money</span>
+            </button>
+            <button onclick="openAddGroupModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20 transition">
+              <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i>
+              <span>New Category</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Category Groups & Envelopes Container -->
+        <div id="categories-container" class="space-y-4">
+          <!-- Rendered dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN (5/12): SAPA RISK METER, EXPENSE LOGGER, CHARTS & LEDGER -->
+      <div class="lg:col-span-5 space-y-5">
+
+        <!-- A. SAPA RISK METER & FINANCIAL HEALTH SCORE -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                <i data-lucide="gauge" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="font-display font-bold text-sm text-slate-900 dark:text-white">Sapa Shield & Readiness</h3>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">Real-time cash flow resilience score</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span id="sapa-score-value" class="font-display font-extrabold text-2xl tabular-nums text-emerald-600 dark:text-emerald-400">92</span>
+              <span class="text-xs font-semibold text-slate-400">/100</span>
+            </div>
+          </div>
+
+          <!-- Meter Bar -->
+          <div class="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5">
+            <div id="sapa-score-bar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500" style="width: 92%"></div>
+          </div>
+
+          <div class="mt-3 flex items-center justify-between text-[11px] font-semibold">
+            <span id="sapa-status-label" class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Low Sapa Risk — Fortress Mode</span>
+            <span id="savings-rate-label" class="text-slate-500 dark:text-slate-400 tabular-nums">Savings Rate: 0%</span>
+          </div>
+
+          <p id="sapa-tip-text" class="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/70 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+            💡 Every Naira is assigned and zero envelopes are in the red. Keep guarding your emergency fund!
+          </p>
+        </div>
+
+        <!-- B. QUICK EXPENSE LOGGER -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex items-center justify-between mb-3.5">
+            <h3 class="font-display font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>
+              <span>Log Quick Expense</span>
+            </h3>
+            <span class="text-[11px] text-slate-400">Deducts from envelope</span>
+          </div>
+
+          <form id="expense-form" onsubmit="handleAddExpense(event)" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Merchant / Description</label>
+                <input type="text" id="exp-desc" required placeholder="e.g., Shoprite, Bolt, PHCN" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Amount (<span class="currency-symbol">₦</span>)</label>
+                <input type="number" id="exp-amount" required min="1" step="any" placeholder="5000" class="w-full px-3 py-2 text-xs font-semibold tabular-nums rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Envelope</label>
+                <select id="exp-envelope" required class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Date</label>
+                <input type="date" id="exp-date" required class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Record Outflow</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- C. CASH FLOW ALLOCATION CHART -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="font-display font-bold text-sm text-slate-900 dark:text-white">Category Allocation</h3>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Assigned cash flow across groups</p>
+            </div>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Donut View</span>
+          </div>
+          <div class="relative h-52 w-full flex items-center justify-center">
+            <canvas id="allocationChart"></canvas>
+          </div>
+          <div id="chart-legend" class="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+            <!-- Custom compact legend -->
+          </div>
+        </div>
+
+        <!-- D. TRANSACTION LEDGER -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 class="font-display font-bold text-sm text-slate-900 dark:text-white">Recent Transactions</h3>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Deleting a row refunds its envelope</p>
+            </div>
+            <span id="tx-count-badge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">0 items</span>
+          </div>
+
+          <!-- Search & Filter -->
+          <div class="flex gap-2 mb-3">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="tx-search" oninput="renderTransactions()" placeholder="Search merchant..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <select id="tx-filter-envelope" onchange="renderTransactions()" class="px-2.5 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 max-w-[140px]">
+              <option value="ALL">All Envelopes</option>
+            </select>
+          </div>
+
+          <!-- Transaction List -->
+          <div id="transactions-list" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200/80 dark:border-slate-800 py-5 mt-8 bg-white/50 dark:bg-slate-900/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+      <p><span class="font-semibold text-slate-700 dark:text-slate-300">SapaStop</span> — Zero-Based Envelope Budgeting Portal. All data stays locally in your browser.</p>
+      <p>Rule #1: Give every Naira a job before the month begins.</p>
+    </div>
+  </footer>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- 1. Manage Income Streams Modal -->
+  <div id="income-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-display font-bold text-base text-slate-900 dark:text-white">Monthly Income Streams</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Add salary, side hustles, freelance gigs, or dividends</p>
+        </div>
+        <button onclick="closeModal('income-modal')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div id="income-modal-list" class="space-y-2.5 max-h-60 overflow-y-auto mb-4 pr-1">
+        <!-- Income streams list -->
+      </div>
+
+      <form onsubmit="handleAddIncomeStream(event)" class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+        <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Add New Income Source</p>
+        <div class="grid grid-cols-5 gap-2">
+          <input type="text" id="new-income-name" required placeholder="e.g., Upwork Gig" class="col-span-3 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <input type="number" id="new-income-amount" required min="1" step="any" placeholder="Amount" class="col-span-2 px-3 py-2 text-xs font-semibold tabular-nums rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">
+          + Add Income Stream
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Move Money (Cover Overspending) Modal -->
+  <div id="move-money-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-display font-bold text-base text-slate-900 dark:text-white">Move Money Between Envelopes</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Roll with the punches — cover overspending without breaking your zero-based budget</p>
+        </div>
+        <button onclick="closeModal('move-money-modal')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleMoveMoney(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">From Envelope (Source)</label>
+          <select id="move-from-select" required class="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">To Envelope (Destination)</label>
+          <select id="move-to-select" required class="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Amount to Transfer (<span class="currency-symbol">₦</span>)</label>
+          <input type="number" id="move-amount" required min="1" step="any" placeholder="10000" class="w-full px-3 py-2.5 text-xs font-semibold tabular-nums rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal('move-money-modal')" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">Transfer Funds</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. Add / Edit Envelope Modal -->
+  <div id="envelope-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="envelope-modal-title" class="font-display font-bold text-base text-slate-900 dark:text-white">Create New Envelope</h3>
+        <button onclick="closeModal('envelope-modal')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleSaveEnvelope(event)" class="space-y-3.5">
+        <input type="hidden" id="env-edit-id" />
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Category Group</label>
+          <select id="env-group-select" required class="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+        </div>
+        <div class="grid grid-cols-4 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Icon</label>
+            <input type="text" id="env-icon" required maxlength="4" value="💼" class="w-full px-3 py-2.5 text-center text-base rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div class="col-span-3">
+            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Envelope Name</label>
+            <input type="text" id="env-name" required placeholder="e.g., Inverter & Solar Fund" class="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Initial Assigned Budget (<span class="currency-symbol">₦</span>)</label>
+          <input type="number" id="env-assigned" required min="0" step="any" value="0" class="w-full px-3 py-2.5 text-xs font-semibold tabular-nums rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal('envelope-modal')" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Save Envelope</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. Add Category Group Modal -->
+  <div id="group-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-display font-bold text-base text-slate-900 dark:text-white">Create Category Group</h3>
+        <button onclick="closeModal('group-modal')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <form onsubmit="handleAddGroup(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Group Name</label>
+          <input type="text" id="group-name" required placeholder="e.g., Side Hustle Expenses" class="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Classification (For Analytics)</label>
+          <select id="group-type" class="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="needs">Needs / Fixed Essentials</option>
+            <option value="wants">Wants / Lifestyle & Chop Life</option>
+            <option value="obligations">Family / Black Tax & Giving</option>
+            <option value="savings">Savings, Japa & Investments</option>
+          </select>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal('group-modal')" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Create Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. Reset Confirmation Modal (Custom replacement for confirm()) -->
+  <div id="reset-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl">
+      <div class="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3">
+        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+      </div>
+      <h3 class="font-display font-bold text-base text-slate-900 dark:text-white">Reset This Month?</h3>
+      <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        This will clear all assigned amounts and recorded transactions for <span id="reset-month-name" class="font-semibold text-slate-700 dark:text-slate-200"></span> so you can budget from scratch.
+      </p>
+      <div class="flex gap-2 mt-5">
+        <button onclick="closeModal('reset-modal')" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold">Cancel</button>
+        <button onclick="confirmResetMonth()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold">Yes, Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== APPLICATION JAVASCRIPT ==================== -->
+  <script>
+    // --- CURRENCY CONFIGURATION ---
+    const CURRENCIES = {
+      NGN: { symbol: '₦', locale: 'en-NG', rate: 1 },
+      USD: { symbol: '$', locale: 'en-US', rate: 1 },
+      GBP: { symbol: '£', locale: 'en-GB', rate: 1 },
+      EUR: { symbol: '€', locale: 'de-DE', rate: 1 }
+    };
+
+    const MONTH_NAMES = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const GROUP_COLORS = {
+      needs: '#059669',       // Emerald 600
+      wants: '#f59e0b',       // Amber 500
+      obligations: '#6366f1', // Indigo 500
+      savings: '#0ea5e9'      // Sky 500
+    };
+
+    // --- GLOBAL STATE ---
+    let appState = {
+      currency: 'NGN',
+      theme: 'light',
+      currentYear: 2026,
+      currentMonth: 10, // 0-indexed: 10 = November 2026
+      months: {} // keyed by "YYYY-MM"
+    };
+
+    let allocationChartInstance = null;
+
+    // --- SAMPLE NIGERIAN BUDGET FACTORY ---
+    function createSampleMonthData(year, month) {
+      const mStr = String(month + 1).padStart(2, '0');
+      return {
+        collapsedGroups: {},
+        incomes: [
+          { id: 'inc-1', name: 'Monthly Net Salary', amount: 520000 },
+          { id: 'inc-2', name: 'Design / Tech Side Hustle', amount: 130000 }
+        ],
+        groups: [
+          { id: 'grp-essentials', name: 'Fixed Essentials & Bills', type: 'needs' },
+          { id: 'grp-living', name: 'Daily Living & Chop Life', type: 'wants' },
+          { id: 'grp-family', name: 'Black Tax & Family Support', type: 'obligations' },
+          { id: 'grp-savings', name: 'Savings, Japa & Investments', type: 'savings' }
+        ],
+        envelopes: [
+          { id: 'env-rent', groupId: 'grp-essentials', icon: '🏠', name: 'Rent & Estate Service Charge', assigned: 150000 },
+          { id: 'env-power', groupId: 'grp-essentials', icon: '⚡', name: 'PHCN Prepaid & Gen/Inverter Fuel', assigned: 55000 },
+          { id: 'env-data', groupId: 'grp-essentials', icon: '📶', name: 'Fibre Wi-Fi & Mobile Data', assigned: 25000 },
+          { id: 'env-food', groupId: 'grp-living', icon: '🍲', name: 'Groceries & Market Foodstuff', assigned: 95000 },
+          { id: 'env-transport', groupId: 'grp-living', icon: '⛽', name: 'Fuel, Uber & Bolt Rides', assigned: 60000 },
+          { id: 'env-enjoy', groupId: 'grp-living', icon: ' Shawarma', name: 'Weekend Chop Life & Outings', assigned: 40000 },
+          { id: 'env-blacktax', groupId: 'grp-family', icon: '🤝', name: 'Parents & Urgent 2k Allowance', assigned: 65000 },
+          { id: 'env-emergency', groupId: 'grp-savings', icon: '🛡️', name: 'PiggyVest Emergency Target', assigned: 90000 },
+          { id: 'env-japa', groupId: 'grp-savings', icon: '✈️', name: 'Cowrywise USD / Japa Fund', assigned: 70000 }
+        ],
+        transactions: [
+          { id: 'tx-1', date: `${year}-${mStr}-02`, desc: 'Shoprite Lekki Foodstuff', envelopeId: 'env-food', amount: 42500 },
+          { id: 'tx-2', date: `${year}-${mStr}-05`, desc: 'Ikeja Electric Prepaid Token', envelopeId: 'env-power', amount: 30000 },
+          { id: 'tx-3', date: `${year}-${mStr}-08`, desc: 'Spectranet Unlimited Renewal', envelopeId: 'env-data', amount: 18500 },
+          { id: 'tx-4', date: `${year}-${mStr}-12`, desc: 'TotalEnergies Fuel Top-up', envelopeId: 'env-transport', amount: 28000 },
+          { id: 'tx-5', date: `${year}-${mStr}-15`, desc: 'Auto-Save Debit to PiggyVest', envelopeId: 'env-emergency', amount: 90000 },
+          { id: 'tx-6', date: `${year}-${mStr}-18`, desc: 'Mums Monthly Upkeep Transfer', envelopeId: 'env-blacktax', amount: 50000 }
+        ]
+      };
+    }
+
+    // Fix emoji typo cleanly
+    function sanitizeEnvelopes(data) {
+      data.envelopes.forEach(e => {
+        if (e.icon.trim() === 'Shawarma') e.icon = '🍔';
+      });
+      return data;
+    }
+
+    // --- STORAGE & INITIALIZATION ---
+    function getMonthKey(year = appState.currentYear, month = appState.currentMonth) {
+      return `${year}-${String(month + 1).padStart(2, '0')}`;
+    }
+
+    function getCurrentMonthData() {
+      const key = getMonthKey();
+      if (!appState.months[key]) {
+        appState.months[key] = sanitizeEnvelopes(createSampleMonthData(appState.currentYear, appState.currentMonth));
+      }
+      return appState.months[key];
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem('sapastop_v1_state', JSON.stringify(appState));
+      } catch (e) {
+        console.warn('Could not persist to localStorage:', e);
+      }
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem('sapastop_v1_state');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          appState = { ...appState, ...parsed };
+        } else {
+          // Seed November 2026 with sample budget
+          appState.months[getMonthKey(2026, 10)] = sanitizeEnvelopes(createSampleMonthData(2026, 10));
+        }
+      } catch (e) {
+        appState.months[getMonthKey(2026, 10)] = sanitizeEnvelopes(createSampleMonthData(2026, 10));
+      }
+    }
+
+    // --- FORMATTING HELPERS ---
+    function formatMoney(amount, includeDecimals = false) {
+      const curr = CURRENCIES[appState.currency] || CURRENCIES.NGN;
+      const num = Number(amount) || 0;
+      const absFormatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: includeDecimals ? 2 : 0,
+        maximumFractionDigits: includeDecimals ? 2 : 0
+      }).format(Math.abs(num));
+      return `${num < 0 ? '-' : ''}${curr.symbol}${absFormatted}`;
+    }
+
+    function getCurrencySymbol() {
+      return (CURRENCIES[appState.currency] || CURRENCIES.NGN).symbol;
+    }
+
+    // --- TOAST NOTIFICATIONS ---
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-slate-900 dark:bg-emerald-950 text-white border-emerald-500/40',
+        warning: 'bg-amber-950 text-amber-100 border-amber-500/40',
+        error: 'bg-rose-950 text-rose-100 border-rose-500/40'
+      };
+      const iconName = type === 'success' ? 'check-circle-2' : type === 'warning' ? 'alert-circle' : 'x-circle';
+      const iconColor = type === 'success' ? 'text-emerald-400' : type === 'warning' ? 'text-amber-400' : 'text-rose-400';
+
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg text-xs font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.success}`;
+      toast.innerHTML = `
+        <i data-lucide="${iconName}" class="w-4 h-4 shrink-0 ${iconColor}"></i>
+        <span class="flex-1">${message}</span>
+      `;
+      container.appendChild(toast);
+      lucide.createIcons({ nodes: [toast] });
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    // --- CORE CALCULATIONS ---
+    function calculateMetrics() {
+      const data = getCurrentMonthData();
+      const totalIncome = data.incomes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      const totalAssigned = data.envelopes.reduce((sum, env) => sum + (Number(env.assigned) || 0), 0);
+      const readyToAssign = totalIncome - totalAssigned;
+
+      // Map spent per envelope
+      const spentMap = {};
+      data.envelopes.forEach(e => spentMap[e.id] = 0);
+      data.transactions.forEach(tx => {
+        if (spentMap[tx.envelopeId] !== undefined) {
+          spentMap[tx.envelopeId] += (Number(tx.amount) || 0);
+        }
+      });
+
+      const totalSpent = Object.values(spentMap).reduce((a, b) => a + b, 0);
+      const totalAvailable = totalAssigned - totalSpent;
+
+      // Overspent envelopes count
+      let overspentCount = 0;
+      data.envelopes.forEach(env => {
+        const avail = (Number(env.assigned) || 0) - (spentMap[env.id] || 0);
+        if (avail < 0) overspentCount++;
+      });
+
+      // Savings rate calculation
+      const savingsGroupIds = data.groups.filter(g => g.type === 'savings').map(g => g.id);
+      const savingsAssigned = data.envelopes
+        .filter(e => savingsGroupIds.includes(e.groupId))
+        .reduce((sum, e) => sum + (Number(e.assigned) || 0), 0);
+      const savingsRate = totalIncome > 0 ? Math.round((savingsAssigned / totalIncome) * 100) : 0;
+
+      return {
+        totalIncome,
+        totalAssigned,
+        readyToAssign,
+        spentMap,
+        totalSpent,
+        totalAvailable,
+        overspentCount,
+        savingsRate
+      };
+    }
+
+    // --- RENDERING PIPELINE ---
+    function renderAll() {
+      const data = getCurrentMonthData();
+      const metrics = calculateMetrics();
+
+      // Update Header Month & Currency
+      document.getElementById('current-month-label').textContent = `${MONTH_NAMES[appState.currentMonth]} ${appState.currentYear}`;
+      document.getElementById('currency-select').value = appState.currency;
+      document.querySelectorAll('.currency-symbol').forEach(el => el.textContent = getCurrencySymbol());
+
+      // Set default expense date to current viewed month
+      const expDateInput = document.getElementById('exp-date');
+      const monthPrefix = getMonthKey();
+      if (!expDateInput.value || !expDateInput.value.startsWith(monthPrefix)) {
+        expDateInput.value = `${monthPrefix}-15`;
+      }
+
+      renderCommandCenter(data, metrics);
+      renderCategoriesAndEnvelopes(data, metrics);
+      renderSapaMeter(metrics);
+      renderEnvelopeDropdowns(data, metrics);
+      renderTransactions();
+      renderChart(data);
+
+      lucide.createIcons();
+      saveState();
+    }
+
+    function renderCommandCenter(data, metrics) {
+      const card = document.getElementById('ready-to-assign-card');
+      const amountEl = document.getElementById('ready-to-assign-amount');
+      const msgEl = document.getElementById('ready-to-assign-message');
+      const dotEl = document.getElementById('rta-badge-dot');
+      const autoBtn = document.getElementById('auto-balance-btn');
+
+      amountEl.textContent = formatMoney(metrics.readyToAssign);
+
+      // Reset classes
+      card.className = 'lg:col-span-7 rounded-2xl p-5 sm:p-6 border transition-all duration-300 shadow-sm flex flex-col justify-between';
+      autoBtn.classList.add('hidden');
+
+      if (Math.abs(metrics.readyToAssign) < 0.01) {
+        // ZERO-BASED ACHIEVED!
+        card.classList.add('bg-emerald-50/90', 'dark:bg-emerald-950/35', 'border-emerald-200', 'dark:border-emerald-800/80');
+        amountEl.className = 'font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-emerald-700 dark:text-emerald-300';
+        msgEl.className = 'mt-1.5 text-sm font-medium text-emerald-800 dark:text-emerald-200';
+        msgEl.textContent = `Sapa Defeated! Every single ${appState.currency === 'NGN' ? 'Naira' : 'unit'} has a clear job.`;
+        dotEl.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+      } else if (metrics.readyToAssign > 0) {
+        // POSITIVE: IDLE CASH LEFT TO BUDGET
+        card.classList.add('bg-amber-50/90', 'dark:bg-amber-950/30', 'border-amber-200', 'dark:border-amber-800/70');
+        amountEl.className = 'font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-amber-700 dark:text-amber-300';
+        msgEl.className = 'mt-1.5 text-sm font-medium text-amber-800 dark:text-amber-200';
+        msgEl.textContent = `${formatMoney(metrics.readyToAssign)} idle cash waiting — assign it before lifestyle creep hits!`;
+        dotEl.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse';
+        autoBtn.classList.remove('hidden');
+        autoBtn.className = 'text-xs font-semibold text-amber-800 dark:text-amber-300 underline decoration-dotted underline-offset-4 hover:opacity-80 transition';
+      } else {
+        // NEGATIVE: OVER-ASSIGNED
+        card.classList.add('bg-rose-50/95', 'dark:bg-rose-950/35', 'border-rose-200', 'dark:border-rose-800/80');
+        amountEl.className = 'font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-rose-700 dark:text-rose-300';
+        msgEl.className = 'mt-1.5 text-sm font-medium text-rose-800 dark:text-rose-200';
+        msgEl.textContent = `Over-assigned by ${formatMoney(Math.abs(metrics.readyToAssign))}! Reduce an envelope to balance back to zero.`;
+        dotEl.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping';
+      }
+
+      // Render Income Chips
+      const pillsContainer = document.getElementById('income-streams-pills');
+      pillsContainer.innerHTML = data.incomes.map(inc => `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 border border-black/5 dark:border-white/10">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>${escapeHTML(inc.name)}:</span>
+          <strong class="tabular-nums font-semibold">${formatMoney(inc.amount)}</strong>
+        </span>
+      `).join('');
+
+      // Update 4 KPI Cards
+      document.getElementById('kpi-income').textContent = formatMoney(metrics.totalIncome);
+      document.getElementById('kpi-assigned').textContent = formatMoney(metrics.totalAssigned);
+      const assignedPct = metrics.totalIncome > 0 ? Math.round((metrics.totalAssigned / metrics.totalIncome) * 100) : 0;
+      document.getElementById('kpi-assigned-pct').textContent = `${assignedPct}% of income allocated`;
+
+      document.getElementById('kpi-spent').textContent = formatMoney(metrics.totalSpent);
+      const spentPct = metrics.totalAssigned > 0 ? Math.round((metrics.totalSpent / metrics.totalAssigned) * 100) : 0;
+      document.getElementById('kpi-spent-pct').textContent = `${spentPct}% of assigned used`;
+
+      const availEl = document.getElementById('kpi-available');
+      availEl.textContent = formatMoney(metrics.totalAvailable);
+      availEl.className = `mt-2.5 font-display font-bold text-lg sm:text-xl tabular-nums truncate ${metrics.totalAvailable < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`;
+    }
+
+    function renderCategoriesAndEnvelopes(data, metrics) {
+      const container = document.getElementById('categories-container');
+      document.getElementById('envelope-count-badge').textContent = data.envelopes.length;
+
+      if (data.groups.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-10 text-center border border-dashed border-slate-300 dark:border-slate-700">
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">No budget categories yet</p>
+            <p class="text-xs text-slate-500 mt-1">Click "New Category" above or load the sample budget to begin.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = data.groups.map(group => {
+        const groupEnvelopes = data.envelopes.filter(e => e.groupId === group.id);
+        const groupAssigned = groupEnvelopes.reduce((s, e) => s + (Number(e.assigned) || 0), 0);
+        const groupSpent = groupEnvelopes.reduce((s, e) => s + (metrics.spentMap[e.id] || 0), 0);
+        const groupAvail = groupAssigned - groupSpent;
+        const isCollapsed = !!data.collapsedGroups[group.id];
+        const dotColor = GROUP_COLORS[group.type] || '#10b981';
+
+        const envelopesHTML = groupEnvelopes.map(env => {
+          const assigned = Number(env.assigned) || 0;
+          const spent = metrics.spentMap[env.id] || 0;
+          const available = assigned - spent;
+          const pctUsed = assigned > 0 ? Math.min(100, Math.round((spent / assigned) * 100)) : (spent > 0 ? 100 : 0);
+
+          // Progress bar color & available pill styling
+          let barColor = 'bg-emerald-500';
+          let pillClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/70';
+
+          if (available < 0) {
+            barColor = 'bg-rose-500';
+            pillClasses = 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800 font-bold';
+          } else if (available === 0 && assigned > 0) {
+            barColor = 'bg-slate-400';
+            pillClasses = 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+          } else if (pctUsed >= 80) {
+            barColor = 'bg-amber-500';
+            pillClasses = 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70';
+          }
+
+          return `
+            <div class="group/row p-3.5 sm:px-4 hover:bg-slate-50/90 dark:hover:bg-slate-800/40 transition border-t border-slate-100 dark:border-slate-800/80">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- Icon + Name + Progress Bar -->
+                <div class="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                  <div class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-base shrink-0 select-none">
+                    ${escapeHTML(env.icon)}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-xs sm:text-sm text-slate-800 dark:text-slate-100 truncate">${escapeHTML(env.name)}</span>
+                      ${available < 0 ? `<button onclick="openMoveMoneyModal('${env.id}')" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-600 text-white hover:bg-rose-700 transition shrink-0">Cover</button>` : ''}
+                    </div>
+                    <!-- Progress bar -->
+                    <div class="mt-1.5 flex items-center gap-2">
+                      <div class="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full ${barColor} rounded-full transition-all duration-300" style="width: ${pctUsed}%"></div>
+                      </div>
+                      <span class="text-[10px] tabular-nums text-slate-400 shrink-0">${pctUsed}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Numbers Grid: Assigned Input | Spent | Available Pill | Actions -->
+                <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/60">
+                  <!-- Editable Assigned Input -->
+                  <div class="flex flex-col items-end">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 sm:hidden">Assigned</span>
+                    <div class="relative flex items-center">
+                      <span class="text-xs text-slate-400 absolute left-2.5 pointer-events-none">${getCurrencySymbol()}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value="${assigned}"
+                        onchange="updateEnvelopeAssigned('${env.id}', this.value)"
+                        aria-label="Assigned amount for ${escapeHTML(env.name)}"
+                        class="w-28 sm:w-32 pl-6 pr-2 py-1.5 text-right text-xs font-semibold tabular-nums rounded-lg bg-slate-50 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Spent -->
+                  <div class="w-20 text-right hidden md:block">
+                    <span class="text-xs tabular-nums text-slate-500 dark:text-slate-400">${formatMoney(spent)}</span>
+                  </div>
+
+                  <!-- Available Pill -->
+                  <div class="min-w-[88px] text-right">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 block sm:hidden">Available</span>
+                    <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold tabular-nums border ${pillClasses}">
+                      ${formatMoney(available)}
+                    </span>
+                  </div>
+
+                  <!-- Quick Row Actions -->
+                  <div class="flex items-center gap-0.5">
+                    ${metrics.readyToAssign > 0 ? `
+                      <button onclick="assignRemainingToEnvelope('${env.id}')" title="Assign remaining ${formatMoney(metrics.readyToAssign)} here" class="p-1.5 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                      </button>
+                    ` : ''}
+                    <button onclick="openEditEnvelopeModal('${env.id}')" title="Edit Envelope" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                      <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="deleteEnvelope('${env.id}')" title="Delete Envelope" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+            <!-- Category Group Header -->
+            <div class="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/50 flex items-center justify-between gap-2 select-none">
+              <button onclick="toggleGroupCollapse('${group.id}')" class="flex items-center gap-2.5 text-left flex-1 min-w-0">
+                <i data-lucide="${isCollapsed ? 'chevron-right' : 'chevron-down'}" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${dotColor}"></span>
+                <span class="font-display font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100 truncate">${escapeHTML(group.name)}</span>
+              </button>
+
+              <div class="flex items-center gap-3 sm:gap-5 text-xs tabular-nums">
+                <div class="hidden sm:block text-right">
+                  <span class="text-[10px] text-slate-400 block">Assigned</span>
+                  <span class="font-semibold text-slate-700 dark:text-slate-200">${formatMoney(groupAssigned)}</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] text-slate-400 block">Available</span>
+                  <span class="font-bold ${groupAvail < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}">${formatMoney(groupAvail)}</span>
+                </div>
+                <button onclick="openCreateEnvelopeModal('${group.id}')" title="Add Envelope to ${escapeHTML(group.name)}" class="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Column Headers (Desktop) -->
+            ${!isCollapsed && groupEnvelopes.length > 0 ? `
+              <div class="hidden sm:flex items-center justify-end gap-3 px-4 py-1.5 bg-slate-50/40 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800/60 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span class="w-32 text-right">Assigned</span>
+                <span class="w-20 text-right hidden md:block">Spent</span>
+                <span class="min-w-[88px] text-right">Available</span>
+                <span class="w-16 text-right">Actions</span>
+              </div>
+            ` : ''}
+
+            <!-- Envelopes List -->
+            <div class="${isCollapsed ? 'hidden' : 'block'}">
+              ${groupEnvelopes.length > 0 ? envelopesHTML : `
+                <div class="p-4 text-center text-xs text-slate-400 border-t border-slate-100 dark:border-slate-800">
+                  No envelopes in this category yet.
+                  <button onclick="openCreateEnvelopeModal('${group.id}')" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline ml-1">+ Add one</button>
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderSapaMeter(metrics) {
+      let score = 50;
+
+      // 1. Zero-based completion (+30 pts)
+      if (metrics.totalIncome > 0) {
+        if (Math.abs(metrics.readyToAssign) < 0.01) {
+          score += 30;
+        } else if (metrics.readyToAssign > 0) {
+          const allocRatio = metrics.totalAssigned / metrics.totalIncome;
+          score += Math.round(allocRatio * 20);
+        } else {
+          // Penalty for over-assigning
+          score -= 20;
+        }
+      }
+
+      // 2. Savings rate bonus (up to +20 pts for >= 20% savings)
+      score += Math.min(20, metrics.savingsRate);
+
+      // 3. Overspending penalty (-10 pts per overspent envelope)
+      score -= metrics.overspentCount * 10;
+
+      score = Math.max(5, Math.min(100, score));
+
+      const scoreEl = document.getElementById('sapa-score-value');
+      const barEl = document.getElementById('sapa-score-bar');
+      const badgeEl = document.getElementById('sapa-status-label');
+      const tipEl = document.getElementById('sapa-tip-text');
+      const savLabel = document.getElementById('savings-rate-label');
+
+      scoreEl.textContent = score;
+      barEl.style.width = `${score}%`;
+      savLabel.textContent = `Savings Rate: ${metrics.savingsRate}%`;
+
+      if (score >= 80) {
+        scoreEl.className = 'font-display font-extrabold text-2xl tabular-nums text-emerald-600 dark:text-emerald-400';
+        barEl.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500';
+        badgeEl.className = 'px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+        badgeEl.textContent = 'Low Sapa Risk — Fortress Mode';
+        tipEl.textContent = `💡 Solid defense! ${metrics.savingsRate}% of your income is locked into Savings/Investments and every Naira is accounted for.`;
+      } else if (score >= 55) {
+        scoreEl.className = 'font-display font-extrabold text-2xl tabular-nums text-amber-600 dark:text-amber-400';
+        barEl.className = 'h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500';
+        badgeEl.className = 'px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300';
+        badgeEl.textContent = 'Moderate Sapa Risk — Stay Alert';
+        tipEl.textContent = metrics.readyToAssign > 0
+          ? `⚠️ You still have ${formatMoney(metrics.readyToAssign)} unassigned. Unbudgeted cash disappears fast on random expenses!`
+          : `⚠️ Watch your envelope limits and aim for at least 15–20% in your Savings/Japa category.`;
+      } else {
+        scoreEl.className = 'font-display font-extrabold text-2xl tabular-nums text-rose-600 dark:text-rose-400';
+        barEl.className = 'h-full rounded-full bg-gradient-to-r from-rose-500 to-red-600 transition-all duration-500';
+        badgeEl.className = 'px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300';
+        badgeEl.textContent = 'High Sapa Alert — Immediate Action';
+        tipEl.textContent = metrics.overspentCount > 0
+          ? `🚨 ${metrics.overspentCount} envelope(s) are overspent! Use "Move Money" to cover the deficit from a lower-priority envelope.`
+          : `🚨 Your assigned budget exceeds your income. Trim non-essentials immediately to prevent mid-month Sapa.`;
+      }
+    }
+
+    function renderEnvelopeDropdowns(data, metrics) {
+      const expSelect = document.getElementById('exp-envelope');
+      const filterSelect = document.getElementById('tx-filter-envelope');
+      const prevExpVal = expSelect.value;
+      const prevFilterVal = filterSelect.value;
+
+      const optionsHTML = data.groups.map(g => {
+        const envs = data.envelopes.filter(e => e.groupId === g.id);
+        if (!envs.length) return '';
+        return `
+          <optgroup label="${escapeHTML(g.name)}">
+            ${envs.map(e => {
+              const avail = (Number(e.assigned) || 0) - (metrics.spentMap[e.id] || 0);
+              return `<option value="${e.id}">${escapeHTML(e.icon)} ${escapeHTML(e.name)} (${formatMoney(avail)} left)</option>`;
+            }).join('')}
+          </optgroup>
+        `;
+      }).join('');
+
+      expSelect.innerHTML = optionsHTML;
+      if (prevExpVal && data.envelopes.some(e => e.id === prevExpVal)) {
+        expSelect.value = prevExpVal;
+      }
+
+      filterSelect.innerHTML = `<option value="ALL">All Envelopes</option>` +
+        data.envelopes.map(e => `<option value="${e.id}">${escapeHTML(e.icon)} ${escapeHTML(e.name)}</option>`).join('');
+      if (prevFilterVal) filterSelect.value = prevFilterVal;
+    }
+
+    function renderTransactions() {
+      const data = getCurrentMonthData();
+      const listEl = document.getElementById('transactions-list');
+      const searchVal = (document.getElementById('tx-search').value || '').toLowerCase().trim();
+      const filterEnv = document.getElementById('tx-filter-envelope').value;
+
+      const envMap = {};
+      data.envelopes.forEach(e => envMap[e.id] = e);
+
+      const filtered = [...data.transactions]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .filter(tx => {
+          const matchesSearch = !searchVal || tx.desc.toLowerCase().includes(searchVal);
+          const matchesEnv = filterEnv === 'ALL' || tx.envelopeId === filterEnv;
+          return matchesSearch && matchesEnv;
+        });
+
+      document.getElementById('tx-count-badge').textContent = `${filtered.length} item${filtered.length === 1 ? '' : 's'}`;
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="py-8 text-center text-xs text-slate-400">
+            No matching transactions recorded for this month.
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(tx => {
+        const env = envMap[tx.envelopeId] || { icon: '💸', name: 'Uncategorized' };
+        return `
+          <div class="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center text-sm shadow-2xs shrink-0">${escapeHTML(env.icon)}</span>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(tx.desc)}</p>
+                <p class="text-[10px] text-slate-400 truncate">${escapeHTML(env.name)} • ${tx.date}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-xs font-bold tabular-nums text-slate-800 dark:text-slate-200">-${formatMoney(tx.amount)}</span>
+              <button onclick="deleteTransaction('${tx.id}')" title="Delete & Refund Envelope" class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons({ nodes: [listEl] });
+    }
+
+    function renderChart(data) {
+      const ctx = document.getElementById('allocationChart').getContext('2d');
+      const legendEl = document.getElementById('chart-legend');
+
+      const labels = [];
+      const values = [];
+      const colors = [];
+
+      data.groups.forEach(group => {
+        const sum = data.envelopes
+          .filter(e => e.groupId === group.id)
+          .reduce((acc, e) => acc + (Number(e.assigned) || 0), 0);
+        labels.push(group.name);
+        values.push(sum);
+        colors.push(GROUP_COLORS[group.type] || '#10b981');
+      });
+
+      const total = values.reduce((a, b) => a + b, 0);
+
+      legendEl.innerHTML = labels.map((lbl, idx) => {
+        const pct = total > 0 ? Math.round((values[idx] / total) * 100) : 0;
+        return `
+          <div class="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${colors[idx]}"></span>
+              <span class="truncate text-slate-600 dark:text-slate-300 font-medium">${escapeHTML(lbl)}</span>
+            </div>
+            <span class="font-bold tabular-nums text-slate-800 dark:text-slate-100 shrink-0">${pct}%</span>
+          </div>
+        `;
+      }).join('');
+
+      if (allocationChartInstance) {
+        allocationChartInstance.destroy();
+      }
+
+      const isDark = document.documentElement.classList.contains('dark');
+
+      allocationChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: total > 0 ? values : [1],
+            backgroundColor: total > 0 ? colors : [isDark ? '#1e293b' : '#e2e8f0'],
+            borderWidth: 2,
+            borderColor: isDark ? '#0f172a' : '#ffffff',
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: total > 0,
+              callbacks: {
+                label: (context) => ` ${context.label}: ${formatMoney(context.raw)}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // --- INTERACTIVE HANDLERS ---
+
+    function changeMonth(delta) {
+      let m = appState.currentMonth + delta;
+      let y = appState.currentYear;
+      if (m > 11) { m = 0; y++; }
+      if (m < 0) { m = 11; y--; }
+      appState.currentMonth = m;
+      appState.currentYear = y;
+
+      // If month doesn't exist yet, initialize cleanly from previous month structure with 0 spent
+      const key = getMonthKey(y, m);
+      if (!appState.months[key]) {
+        const prevKey = getMonthKey(
+          delta > 0 ? (m === 0 ? y - 1 : y) : (m === 11 ? y + 1 : y),
+          delta > 0 ? (m === 0 ? 11 : m - 1) : (m === 11 ? 0 : m + 1)
+        );
+        const template = appState.months[prevKey] || createSampleMonthData(y, m);
+        appState.months[key] = {
+          collapsedGroups: {},
+          incomes: JSON.parse(JSON.stringify(template.incomes)),
+          groups: JSON.parse(JSON.stringify(template.groups)),
+          envelopes: template.envelopes.map(e => ({ ...e })),
+          transactions: []
+        };
+      }
+      renderAll();
+    }
+
+    function changeCurrency(newCurrency) {
+      appState.currency = newCurrency;
+      renderAll();
+      showToast(`Display currency switched to ${newCurrency}`);
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.classList.toggle('dark');
+      appState.theme = html.classList.contains('dark') ? 'dark' : 'light';
+      renderAll();
+    }
+
+    function toggleActionsMenu() {
+      document.getElementById('actions-menu').classList.toggle('hidden');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('actions-dropdown-wrapper');
+      const menu = document.getElementById('actions-menu');
+      if (wrapper && !wrapper.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    function toggleGroupCollapse(groupId) {
+      const data = getCurrentMonthData();
+      data.collapsedGroups[groupId] = !data.collapsedGroups[groupId];
+      renderAll();
+    }
+
+    function updateEnvelopeAssigned(envId, rawVal) {
+      const data = getCurrentMonthData();
+      const env = data.envelopes.find(e => e.id === envId);
+      if (!env) return;
+      const val = Math.max(0, parseFloat(rawVal) || 0);
+      env.assigned = val;
+      renderAll();
+    }
+
+    function assignRemainingToEnvelope(envId) {
+      const data = getCurrentMonthData();
+      const metrics = calculateMetrics();
+      if (metrics.readyToAssign <= 0) return;
+      const env = data.envelopes.find(e => e.id === envId);
+      if (!env) return;
+      env.assigned = (Number(env.assigned) || 0) + metrics.readyToAssign;
+      renderAll();
+      showToast(`Assigned ${formatMoney(metrics.readyToAssign)} to ${env.name}`);
+    }
+
+    function autoBalanceZero() {
+      const data = getCurrentMonthData();
+      const metrics = calculateMetrics();
+      if (metrics.readyToAssign <= 0) return;
+
+      const savingsGroups = data.groups.filter(g => g.type === 'savings').map(g => g.id);
+      const targetEnv = data.envelopes.find(e => savingsGroups.includes(e.groupId)) || data.envelopes[data.envelopes.length - 1];
+      if (!targetEnv) return;
+
+      const added = metrics.readyToAssign;
+      targetEnv.assigned = (Number(targetEnv.assigned) || 0) + added;
+      renderAll();
+      showToast(`Zero-based achieved! Moved ${formatMoney(added)} to ${targetEnv.name}`);
+    }
+
+    function handleAddExpense(e) {
+      e.preventDefault();
+      const desc = document.getElementById('exp-desc').value.trim();
+      const amount = parseFloat(document.getElementById('exp-amount').value);
+      const envelopeId = document.getElementById('exp-envelope').value;
+      const date = document.getElementById('exp-date').value;
+
+      if (!desc || isNaN(amount) || amount <= 0 || !envelopeId) return;
+
+      const data = getCurrentMonthData();
+      data.transactions.push({
+        id: 'tx-' + Date.now(),
+        date,
+        desc,
+        envelopeId,
+        amount
+      });
+
+      document.getElementById('exp-desc').value = '';
+      document.getElementById('exp-amount').value = '';
+      renderAll();
+      showToast(`Logged ${formatMoney(amount)} for ${desc}`);
+    }
+
+    function deleteTransaction(txId) {
+      const data = getCurrentMonthData();
+      const idx = data.transactions.findIndex(t => t.id === txId);
+      if (idx === -1) return;
+      const removed = data.transactions.splice(idx, 1)[0];
+      renderAll();
+      showToast(`Refunded ${formatMoney(removed.amount)} back to envelope`, 'warning');
+    }
+
+    // --- MODALS LOGIC ---
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // Income Streams Modal
+    function openIncomeModal() {
+      renderIncomeModalList();
+      openModal('income-modal');
+    }
+
+    function renderIncomeModalList() {
+      const data = getCurrentMonthData();
+      const list = document.getElementById('income-modal-list');
+      if (data.incomes.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">No income streams added yet.</p>`;
+        return;
+      }
+      list.innerHTML = data.incomes.map(inc => `
+        <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700">
+          <span class="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate flex-1">${escapeHTML(inc.name)}</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value="${inc.amount}"
+            onchange="updateIncomeStream('${inc.id}', this.value)"
+            class="w-28 px-2.5 py-1 text-right text-xs font-bold tabular-nums rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400"
+          />
+          <button onclick="deleteIncomeStream('${inc.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join('');
+      lucide.createIcons({ nodes: [list] });
+    }
+
+    function handleAddIncomeStream(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-income-name').value.trim();
+      const amount = parseFloat(document.getElementById('new-income-amount').value);
+      if (!name || isNaN(amount) || amount <= 0) return;
+
+      const data = getCurrentMonthData();
+      data.incomes.push({ id: 'inc-' + Date.now(), name, amount });
+      document.getElementById('new-income-name').value = '';
+      document.getElementById('new-income-amount').value = '';
+      renderIncomeModalList();
+      renderAll();
+      showToast(`Added income stream: ${name}`);
+    }
+
+    function updateIncomeStream(id, val) {
+      const data = getCurrentMonthData();
+      const inc = data.incomes.find(i => i.id === id);
+      if (inc) {
+        inc.amount = Math.max(0, parseFloat(val) || 0);
+        renderAll();
+      }
+    }
+
+    function deleteIncomeStream(id) {
+      const data = getCurrentMonthData();
+      data.incomes = data.incomes.filter(i => i.id !== id);
+      renderIncomeModalList();
+      renderAll();
+    }
+
+    // Move Money Modal
+    function openMoveMoneyModal(preselectDestinationId = null) {
+      const data = getCurrentMonthData();
+      const metrics = calculateMetrics();
+      const fromSel = document.getElementById('move-from-select');
+      const toSel = document.getElementById('move-to-select');
+
+      const opts = data.envelopes.map(e => {
+        const avail = (Number(e.assigned) || 0) - (metrics.spentMap[e.id] || 0);
+        return `<option value="${e.id}">${escapeHTML(e.icon)} ${escapeHTML(e.name)} (Avail: ${formatMoney(avail)})</option>`;
+      }).join('');
+
+      fromSel.innerHTML = opts;
+      toSel.innerHTML = opts;
+
+      if (preselectDestinationId) {
+        toSel.value = preselectDestinationId;
+        const destEnv = data.envelopes.find(e => e.id === preselectDestinationId);
+        if (destEnv) {
+          const deficit = Math.abs((Number(destEnv.assigned) || 0) - (metrics.spentMap[destEnv.id] || 0));
+          if (deficit > 0) document.getElementById('move-amount').value = deficit;
+        }
+      } else {
+        document.getElementById('move-amount').value = '';
+      }
+
+      openModal('move-money-modal');
+    }
+
+    function handleMoveMoney(e) {
+      e.preventDefault();
+      const fromId = document.getElementById('move-from-select').value;
+      const toId = document.getElementById('move-to-select').value;
+      const amount = parseFloat(document.getElementById('move-amount').value);
+
+      if (fromId === toId) {
+        showToast('Select two different envelopes to transfer funds', 'warning');
+        return;
+      }
+      if (isNaN(amount) || amount <= 0) return;
+
+      const data = getCurrentMonthData();
+      const fromEnv = data.envelopes.find(env => env.id === fromId);
+      const toEnv = data.envelopes.find(env => env.id === toId);
+      if (!fromEnv || !toEnv) return;
+
+      fromEnv.assigned = (Number(fromEnv.assigned) || 0) - amount;
+      toEnv.assigned = (Number(toEnv.assigned) || 0) + amount;
+
+      closeModal('move-money-modal');
+      renderAll();
+      showToast(`Moved ${formatMoney(amount)} from ${fromEnv.name} → ${toEnv.name}`);
+    }
+
+    // Add / Edit Envelope Modal
+    function openCreateEnvelopeModal(defaultGroupId) {
+      const data = getCurrentMonthData();
+      document.getElementById('envelope-modal-title').textContent = 'Create New Envelope';
+      document.getElementById('env-edit-id').value = '';
+      document.getElementById('env-icon').value = '💼';
+      document.getElementById('env-name').value = '';
+      document.getElementById('env-assigned').value = '0';
+
+      const grpSel = document.getElementById('env-group-select');
+      grpSel.innerHTML = data.groups.map(g => `<option value="${g.id}">${escapeHTML(g.name)}</option>`).join('');
+      if (defaultGroupId) grpSel.value = defaultGroupId;
+
+      openModal('envelope-modal');
+    }
+
+    function openEditEnvelopeModal(envId) {
+      const data = getCurrentMonthData();
+      const env = data.envelopes.find(e => e.id === envId);
+      if (!env) return;
+
+      document.getElementById('envelope-modal-title').textContent = 'Edit Envelope';
+      document.getElementById('env-edit-id').value = env.id;
+      document.getElementById('env-icon').value = env.icon;
+      document.getElementById('env-name').value = env.name;
+      document.getElementById('env-assigned').value = env.assigned;
+
+      const grpSel = document.getElementById('env-group-select');
+      grpSel.innerHTML = data.groups.map(g => `<option value="${g.id}">${escapeHTML(g.name)}</option>`).join('');
+      grpSel.value = env.groupId;
+
+      openModal('envelope-modal');
+    }
+
+    function handleSaveEnvelope(e) {
+      e.preventDefault();
+      const editId = document.getElementById('env-edit-id').value;
+      const groupId = document.getElementById('env-group-select').value;
+      const icon = document.getElementById('env-icon').value.trim() || '📁';
+      const name = document.getElementById('env-name').value.trim();
+      const assigned = Math.max(0, parseFloat(document.getElementById('env-assigned').value) || 0);
+
+      if (!name || !groupId) return;
+
+      const data = getCurrentMonthData();
+      if (editId) {
+        const env = data.envelopes.find(item => item.id === editId);
+        if (env) {
+          env.groupId = groupId;
+          env.icon = icon;
+          env.name = name;
+          env.assigned = assigned;
+        }
+        showToast(`Updated envelope "${name}"`);
+      } else {
+        data.envelopes.push({
+          id: 'env-' + Date.now(),
+          groupId,
+          icon,
+          name,
+          assigned
+        });
+        showToast(`Created envelope "${name}"`);
+      }
+
+      closeModal('envelope-modal');
+      renderAll();
+    }
+
+    function deleteEnvelope(envId) {
+      const data = getCurrentMonthData();
+      const env = data.envelopes.find(e => e.id === envId);
+      if (!env) return;
+      data.envelopes = data.envelopes.filter(e => e.id !== envId);
+      data.transactions = data.transactions.filter(t => t.envelopeId !== envId);
+      renderAll();
+      showToast(`Deleted envelope "${env.name}"`, 'warning');
+    }
+
+    // Add Category Group Modal
+    function openAddGroupModal() {
+      document.getElementById('group-name').value = '';
+      openModal('group-modal');
+    }
+
+    function handleAddGroup(e) {
+      e.preventDefault();
+      const name = document.getElementById('group-name').value.trim();
+      const type = document.getElementById('group-type').value;
+      if (!name) return;
+
+      const data = getCurrentMonthData();
+      data.groups.push({
+        id: 'grp-' + Date.now(),
+        name,
+        type
+      });
+
+      closeModal('group-modal');
+      renderAll();
+      showToast(`Added category "${name}"`);
+    }
+
+    // Quick Actions
+    function loadSampleBudget() {
+      const key = getMonthKey();
+      appState.months[key] = sanitizeEnvelopes(createSampleMonthData(appState.currentYear, appState.currentMonth));
+      renderAll();
+      showToast('Loaded realistic Lagos monthly zero-based budget!');
+    }
+
+    function copyFromPreviousMonth() {
+      let prevM = appState.currentMonth - 1;
+      let prevY = appState.currentYear;
+      if (prevM < 0) { prevM = 11; prevY--; }
+      const prevKey = getMonthKey(prevY, prevM);
+      if (!appState.months[prevKey]) {
+        showToast(`No saved budget found for ${MONTH_NAMES[prevM]} ${prevY}`, 'warning');
+        return;
+      }
+      const prev = appState.months[prevKey];
+      const curr = getCurrentMonthData();
+      curr.incomes = JSON.parse(JSON.stringify(prev.incomes));
+      curr.groups = JSON.parse(JSON.stringify(prev.groups));
+      curr.envelopes = JSON.parse(JSON.stringify(prev.envelopes));
+      renderAll();
+      showToast(`Copied income & envelope targets from ${MONTH_NAMES[prevM]} ${prevY}`);
+    }
+
+    function openResetModal() {
+      document.getElementById('reset-month-name').textContent = `${MONTH_NAMES[appState.currentMonth]} ${appState.currentYear}`;
+      openModal('reset-modal');
+    }
+
+    function confirmResetMonth() {
+      const data = getCurrentMonthData();
+      data.envelopes.forEach(e => e.assigned = 0);
+      data.transactions = [];
+      closeModal('reset-modal');
+      renderAll();
+      showToast('Month reset to zero. Ready to assign from scratch!', 'warning');
+    }
+
+    function exportCSV() {
+      const data = getCurrentMonthData();
+      const metrics = calculateMetrics();
+      const monthLabel = `${MONTH_NAMES[appState.currentMonth]}_${appState.currentYear}`;
+
+      let csv = 'Category Group,Envelope,Assigned,Spent,Available\n';
+      data.groups.forEach(g => {
+        data.envelopes.filter(e => e.groupId === g.id).forEach(e => {
+          const spent = metrics.spentMap[e.id] || 0;
+          const avail = (Number(e.assigned) || 0) - spent;
+          csv += `"${g.name}","${e.name}",${e.assigned},${spent},${avail}\n`;
+        });
+      });
+
+      csv += `\nSUMMARY\nTotal Income,${metrics.totalIncome}\nTotal Assigned,${metrics.totalAssigned}\nReady to Assign,${metrics.readyToAssign}\nTotal Spent,${metrics.totalSpent}\n`;
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SapaStop_${monthLabel}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Exported SapaStop_${monthLabel}.csv`);
+    }
+
+    function escapeHTML(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // --- BOOTSTRAP ---
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      if (appState.theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      renderAll();
+    });
+  </script>
+</body>
+</html>
